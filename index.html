@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#182a7d">
+<title>The Final Measure — a big red button</title>
+<meta name="description" content="The Bureau of Last Resorts has one control left. It is big. It is red. Please do not press it.">
+<style>
+  /* ============================================================
+     THE FINAL MEASURE
+     Bureau of Last Resorts · single file · no dependencies
+     ============================================================ */
+  :root{
+    --field:#182a7d;
+    --field-hi:#213791;
+    --field-lo:#0c1648;
+    --ink:#f4ecdb;
+    --ink-soft:rgba(244,236,219,.8);
+    --ink-dim:rgba(244,236,219,.62);
+    --line:rgba(244,236,219,.2);
+    --line-soft:rgba(244,236,219,.1);
+    --red:#e2361d;
+    --red-deep:#8d1108;
+    --paper:#f2e9d6;
+    --paper-ink:#201b14;
+    --paper-line:rgba(32,27,20,.35);
+    --amber:#e6b77c;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --ease:cubic-bezier(.16,1,.3,1);
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0}
+  html{-webkit-text-size-adjust:100%; background:#0c1648}
+  body{
+    min-height:100svh;
+    background:radial-gradient(125% 95% at 50% 34%, var(--field-hi) 0%, var(--field) 46%, var(--field-lo) 100%);
+    color:var(--ink);
+    font-family:var(--serif);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    transition:background 1.2s var(--ease);
+  }
+  ::selection{background:var(--red); color:#fff7ef}
+  :focus-visible{outline:2px solid var(--ink); outline-offset:6px}
+  p{margin:0}
+
+  /* the field reads as a lit screen, not a flat fill */
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:2;
+    box-shadow:inset 0 0 140px rgba(4,8,32,.4);
+  }
+
+  #fx{position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:3}
+  #flash{position:fixed; inset:0; pointer-events:none; z-index:8; opacity:0; background:#fff}
+  #sweep{
+    position:fixed; left:0; right:0; top:0; height:26vh; z-index:9;
+    pointer-events:none; opacity:0;
+    background:linear-gradient(180deg,
+      transparent 0%,
+      rgba(244,236,219,.08) 32%,
+      rgba(255,250,236,.4) 50%,
+      rgba(244,236,219,.08) 68%,
+      transparent 100%);
+  }
+  body.hit #sweep{animation:sweep .68s var(--ease)}
+  @keyframes sweep{
+    0%{opacity:0; transform:translateY(-34vh)}
+    15%{opacity:1}
+    100%{opacity:0; transform:translateY(112vh)}
+  }
+
+  /* ===================== page ===================== */
+  #world{
+    position:relative; z-index:5;
+    min-height:100svh;
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    padding:clamp(22px,3.4vw,48px) clamp(20px,4vw,64px);
+    padding-bottom:max(clamp(20px,3vw,40px), env(safe-area-inset-bottom));
+    transition:transform 1.35s var(--ease), opacity .7s ease, filter .7s ease;
+    transform-origin:50% 50%;
+  }
+
+  .masthead{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:24px;
+    padding-bottom:clamp(12px,1.8vh,18px);
+    border-bottom:1px solid var(--line);
+  }
+  .bureau h1{
+    margin:0;
+    font-family:var(--serif);
+    font-weight:400;
+    font-size:clamp(19px,2.1vw,25px);
+    line-height:1.1;
+    letter-spacing:-.015em;
+  }
+  .bureau .sub{
+    margin-top:5px;
+    font-size:13px; font-style:italic; line-height:1.4;
+    color:var(--ink-dim);
+  }
+  .air{
+    display:flex; align-items:center; gap:8px; flex:none;
+    padding-bottom:3px;
+    font-family:var(--mono); font-size:11px;
+    letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .air i{width:7px; height:7px; border-radius:50%; background:var(--red)}
+
+  /* ===================== stage ===================== */
+  .stage{
+    position:relative;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:clamp(14px,2.2vh,24px);
+    padding:clamp(18px,4vh,44px) 0 clamp(12px,2.6vh,28px);
+    isolation:isolate;
+    overflow:hidden;
+  }
+
+  .figure{
+    position:relative;
+    width:min(100%, 48vh, 500px);
+    aspect-ratio:1;
+    display:grid; place-items:center;
+    flex:none;
+  }
+  .ring{
+    position:absolute; inset:0; width:100%; height:100%;
+    color:var(--ink); opacity:.46;
+    transition:opacity .5s ease;
+  }
+
+  /* ---------- the button ---------- */
+  .assembly{
+    position:relative; z-index:2;
+    width:66%; aspect-ratio:1;
+    display:grid; place-items:center;
+    transition:transform .16s var(--ease);
+    will-change:transform;
+  }
+  /* turned metal bezel */
+  .collar{
+    position:relative;
+    width:100%; height:100%; border-radius:50%;
+    display:grid; place-items:center;
+    background:
+      radial-gradient(circle at 50% 43%, transparent 40%, rgba(12,9,6,.42) 100%),
+      conic-gradient(from 208deg,
+        #cfc3aa 0deg,  #f6efdc 32deg,  #a99e86 68deg,  #e7ddc6 104deg,
+        #9a8f7c 146deg, #f3ebd6 190deg, #bdb199 232deg, #fbf4e2 276deg,
+        #a4997f 318deg, #cfc3aa 360deg);
+    box-shadow:
+      inset 0 1px 0 rgba(255,251,238,.85),
+      inset 0 -2px 4px rgba(18,12,8,.45),
+      0 0 0 1px rgba(6,9,30,.45),
+      0 2px 4px rgba(4,6,20,.5),
+      0 26px 44px -22px rgba(3,5,18,.85);
+  }
+  /* the bore the cap sits in */
+  .collar::before{
+    content:""; position:absolute; inset:6%; border-radius:50%;
+    background:radial-gradient(circle at 50% 28%, #2c0d07 0%, #170504 58%, #0b0201 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,250,236,.3),
+      0 2px 6px rgba(6,3,2,.6),
+      inset 0 8px 14px rgba(0,0,0,.92),
+      inset 0 -2px 3px rgba(255,120,90,.14);
+  }
+  /* the cap: one lit dome, not a stack of rings */
+  .dome{
+    position:relative; z-index:1;
+    width:86%; aspect-ratio:1; padding:0; border:0;
+    border-radius:50%; cursor:pointer;
+    font-family:var(--mono);
+    color:#4e0702;
+    background:
+      radial-gradient(52% 40% at 33% 19%, rgba(255,255,255,.5) 0%, rgba(255,255,255,.16) 46%, rgba(255,255,255,0) 74%),
+      radial-gradient(circle at 50% 112%, rgba(30,2,0,.42) 0%, rgba(30,2,0,0) 48%),
+      radial-gradient(118% 108% at 44% 26%, #ff7a63 0%, #f0452c 26%, #d6230e 54%, #a50f03 78%, #6c0500 100%);
+    box-shadow:
+      inset 0 -4px 9px rgba(0,0,0,.5),
+      inset 0 2px 2px rgba(255,216,202,.4),
+      0 3px 0 #5f0700,
+      0 5px 9px rgba(6,4,10,.45);
+    transform:translateY(0);
+    transition:transform .11s var(--ease), box-shadow .11s var(--ease), filter .2s ease;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .dome::after{
+    content:""; position:absolute; inset:0; border-radius:50%;
+    box-shadow:inset 0 0 0 1px rgba(255,168,142,.22);
+    pointer-events:none;
+  }
+  .dome-text{
+    position:absolute; inset:0;
+    display:grid; place-items:center;
+    padding-bottom:1.5%;
+    font-size:clamp(11px,1.6vmin,12.5px);
+    font-weight:700;
+    letter-spacing:.2em; text-indent:.2em;
+    line-height:1;
+    white-space:nowrap;
+    color:#4e0702;
+    text-shadow:
+      0 1px 0 rgba(255,124,96,.5),
+      0 -1px 1px rgba(38,2,0,.55);
+    pointer-events:none;
+  }
+  .dome:hover{filter:brightness(1.05)}
+  .dome:active,
+  .dome.is-down{
+    transform:translateY(3px);
+    box-shadow:
+      inset 0 6px 11px rgba(0,0,0,.5),
+      inset 0 -2px 4px rgba(0,0,0,.45),
+      0 1px 3px rgba(6,4,10,.5);
+    filter:brightness(.96) saturate(1.05);
+  }
+
+  /* ---------- readout ---------- */
+  .instruction{
+    max-width:34ch;
+    font-size:clamp(15px,1.6vw,19px);
+    line-height:1.5;
+    text-align:center;
+    color:var(--ink-soft);
+    text-wrap:balance;
+    min-height:3em;
+    transition:color .3s ease;
+  }
+
+  .log{
+    list-style:none;
+    margin:0; padding:0;
+    width:min(54ch,100%);
+    flex:0 1 auto;
+    height:min(16vh,120px);
+    min-height:3em;
+    overflow-y:auto;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(244,236,219,.3) transparent;
+  }
+  .log::-webkit-scrollbar{width:5px}
+  .log::-webkit-scrollbar-thumb{background:rgba(244,236,219,.28); border-radius:3px}
+  .log li{
+    display:grid; grid-template-columns:44px minmax(0,1fr);
+    align-items:baseline;
+    gap:10px;
+    padding:6px 0;
+    border-top:1px solid var(--line-soft);
+    animation:entry .4s var(--ease) both;
+  }
+  .log li:first-child{border-top:0}
+  @keyframes entry{from{opacity:0; transform:translateY(4px)}to{opacity:1; transform:none}}
+  .time{
+    font-family:var(--mono);
+    font-size:12px; line-height:1.8;
+    color:var(--ink-dim);
+    font-variant-numeric:tabular-nums;
+  }
+  .line{
+    font-size:15px; line-height:1.6;
+    color:var(--ink-soft);
+  }
+  .log li.latest .line{color:var(--ink)}
+  .log li.boot .line{color:var(--ink-dim)}
+  .log li.final .line,
+  .log li.final .time{color:var(--amber)}
+
+  /* ---------- foot ---------- */
+  .foot{
+    display:flex; align-items:center; flex-wrap:wrap;
+    gap:12px 20px;
+    padding-top:clamp(12px,1.8vh,18px);
+    border-top:1px solid var(--line);
+    font-size:13px;
+    color:var(--ink-dim);
+  }
+  .measure{display:flex; align-items:center; gap:12px}
+  .ticks{display:flex; gap:3px}
+  .ticks i{
+    display:block; width:clamp(10px,1.3vw,18px); height:3px;
+    background:var(--line);
+    transition:background .3s ease;
+  }
+  .ticks i.on{background:var(--red)}
+  .measure b{
+    font-weight:400; color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .rule{flex:1; min-width:12px}
+  .sound{
+    font-family:var(--serif); font-size:13px;
+    color:var(--ink-soft);
+    background:none; border:0; padding:2px 0;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    transition:color .2s ease, border-color .2s ease;
+  }
+  .sound:hover{color:var(--ink); border-color:var(--ink)}
+
+  /* ===================== states ===================== */
+  body.blackout{
+    background:radial-gradient(100% 85% at 50% 40%, #0b0c14 0%, #060609 58%, #030303 100%);
+  }
+  body.blackout .ring{opacity:.2}
+  body.blackout .collar{filter:brightness(.6) saturate(.65)}
+  body.blackout .dome{filter:brightness(1.1) saturate(1.12)}
+
+  body.inverted #world{transform:rotate(180deg)}
+
+  body.font-escape{
+    --serif:"Comic Sans MS","Chalkboard SE","Segoe Print","Bradley Hand",cursive;
+    --mono:"Comic Sans MS","Chalkboard SE","Segoe Print",cursive;
+  }
+  body.font-escape .bureau h1{letter-spacing:0; transform:rotate(-.6deg)}
+
+  body.skittish .ring{animation:nudge 2.6s ease-in-out infinite}
+  @keyframes nudge{0%,100%{transform:none}50%{transform:translateX(3px)}}
+
+  body.singularity .ring{animation:warp 3.6s var(--ease) both, spin 9s linear infinite}
+  @keyframes warp{
+    0%,100%{opacity:.46; filter:none}
+    40%{opacity:.8; filter:blur(.5px)}
+    70%{opacity:.22; filter:blur(1px)}
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  body.singularity .assembly{animation:pull 2.4s ease-in-out infinite}
+  @keyframes pull{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  body.singularity .dome{filter:brightness(1.08) saturate(1.1)}
+
+  body.silence #world{filter:grayscale(.9) brightness(.76) contrast(1.04)}
+
+  /* ===================== duplicates ===================== */
+  .clone{
+    position:absolute; z-index:3;
+    width:clamp(44px,5vw,62px); aspect-ratio:1;
+    border-radius:50%; border:0; cursor:pointer;
+    background:
+      radial-gradient(46% 38% at 34% 22%, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 72%),
+      radial-gradient(120% 110% at 44% 26%, #ff7a63 0%, #ee3f27 34%, #c51207 72%, #6c0500 100%);
+    box-shadow:
+      inset 0 -3px 6px rgba(0,0,0,.5),
+      inset 0 1px 1px rgba(255,216,202,.35),
+      0 2px 0 #5f0700,
+      0 7px 13px -5px rgba(6,4,10,.6);
+    animation:bob 3.6s ease-in-out infinite;
+    transition:transform .12s ease;
+  }
+  .clone:hover{transform:scale(1.07)}
+  .clone.nope{animation:none; transform:scale(.86) rotate(-7deg)}
+  @keyframes bob{0%,100%{translate:0 0}50%{translate:0 -8px}}
+
+  /* ===================== ducks ===================== */
+  .duck{
+    position:absolute; top:0; left:0; z-index:6;
+    background:none; border:0; padding:0; margin:0;
+    line-height:1; cursor:pointer;
+    filter:drop-shadow(0 8px 8px rgba(0,0,0,.3));
+    animation:duckFall var(--dur) linear var(--delay) forwards;
+  }
+  .duck svg{display:block; width:1em; height:1em}
+  .duck span{display:block; transform-origin:50% 50%}
+  .duck span.boing{animation:boing .46s cubic-bezier(.2,.8,.2,1)}
+  @keyframes duckFall{
+    0%{transform:translate3d(0,-18vh,0) rotate(0deg); opacity:0}
+    6%{opacity:1}
+    92%{opacity:1}
+    100%{transform:translate3d(0,110vh,0) rotate(var(--spin)); opacity:0}
+  }
+  @keyframes boing{0%,100%{transform:scale(1)}34%{transform:scale(1.3) rotate(-9deg)}68%{transform:scale(.94)}}
+
+  /* ===================== form 27-B ===================== */
+  .modal{
+    position:fixed; inset:0; z-index:80;
+    display:grid; place-items:center;
+    padding:20px;
+    background:rgba(5,9,32,.74);
+    opacity:0; transition:opacity .3s ease;
+  }
+  .modal[hidden]{display:none}
+  .modal.on{opacity:1}
+  .sheet{
+    position:relative;
+    width:min(500px,100%);
+    max-height:calc(100svh - 40px);
+    overflow-y:auto;
+    padding:clamp(22px,3.6vw,34px);
+    color:var(--paper-ink);
+    background:linear-gradient(180deg,#f7f0e0,#e9e0cb);
+    box-shadow:0 36px 64px -24px rgba(0,0,0,.8);
+    transform:translateY(18px) rotate(-1deg);
+    transition:transform .42s var(--ease);
+  }
+  .modal.on .sheet{transform:translateY(0) rotate(-.5deg)}
+  .form-head{
+    display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+    padding-bottom:8px; margin-bottom:16px;
+    border-bottom:2px solid var(--paper-ink);
+    font-family:var(--mono);
+    font-size:12px; letter-spacing:.03em;
+    color:#5b5142;
+  }
+  .form-head b{font-size:12px; letter-spacing:.06em; color:var(--paper-ink)}
+  .sheet h2{
+    margin:0 0 18px;
+    font-family:var(--serif);
+    font-size:clamp(20px,2.8vw,25px);
+    font-weight:400; line-height:1.2; letter-spacing:-.01em;
+    text-wrap:balance;
+  }
+  .fields{display:grid; gap:14px}
+  .sheet label{
+    display:grid; gap:3px;
+    font-size:12px; font-style:italic; color:#5f5443;
+  }
+  .sheet input{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--paper-ink);
+    background:none;
+    border:0; border-bottom:1px solid var(--paper-line);
+    padding:5px 1px 6px;
+  }
+  .sheet ul{
+    margin:18px 0 0; padding:14px 0 0;
+    list-style:none;
+    display:grid; gap:8px;
+    border-top:1px solid var(--paper-line);
+    font-size:12.5px; line-height:1.65; color:#433a2c;
+  }
+  .sheet ul li{padding-left:17px; position:relative}
+  .sheet ul li::before{
+    content:""; position:absolute; left:0; top:.5em;
+    width:7px; height:7px; border:1px solid #7b6c52;
+  }
+  .sheet ul b{font-family:var(--mono); font-weight:700; color:var(--paper-ink)}
+  .form-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:22px}
+  .btn{
+    font-family:var(--serif);
+    font-size:14px;
+    padding:9px 20px; cursor:pointer;
+    border:1px solid var(--paper-ink);
+    background:none; color:var(--paper-ink);
+    transition:background .18s ease, color .18s ease, transform .08s ease;
+  }
+  .btn:hover{background:rgba(32,27,20,.1)}
+  .btn:active{transform:translateY(2px)}
+  .btn.red{background:#b8231a; border-color:#8d1a12; color:#fff8ee}
+  .btn.red:hover{background:#cb2a1f}
+  .btn:disabled{opacity:.45; cursor:default}
+  .btn:focus-visible{outline:2px solid #b8231a; outline-offset:3px}
+  .approved-stamp{
+    position:absolute; right:clamp(18px,3vw,30px); bottom:72px;
+    padding:6px 12px;
+    border:3px solid #b8231a;
+    color:#b8231a;
+    font-family:var(--mono);
+    font-size:clamp(15px,2.6vw,19px); font-weight:700; letter-spacing:.16em;
+    transform:rotate(-14deg) scale(1.5);
+    opacity:0;
+    transition:opacity .16s ease, transform .3s var(--ease);
+    mix-blend-mode:multiply;
+    pointer-events:none;
+  }
+  .approved-stamp.on{opacity:.86; transform:rotate(-14deg) scale(1)}
+
+  /* ===================== tea ===================== */
+  .tea{
+    position:fixed; inset:0; z-index:90;
+    display:flex;
+    padding:clamp(22px,4vw,48px);
+    overflow-y:auto;
+    background:radial-gradient(90% 64% at 50% 8%, #3a2413 0%, #1d1209 44%, #0c0704 82%, #050302 100%);
+    color:#f6ead6;
+    opacity:0;
+    transition:opacity .95s var(--ease);
+    scrollbar-width:thin;
+    scrollbar-color:rgba(246,234,214,.28) transparent;
+  }
+  .tea[hidden]{display:none !important}
+  .tea.on{opacity:1}
+  .tea::before{
+    content:""; position:fixed; inset:0; pointer-events:none;
+    background:radial-gradient(46% 38% at 50% 54%, rgba(255,186,110,.15), transparent 74%);
+  }
+  .tea-inner{
+    position:relative;
+    width:min(560px,100%);
+    margin:auto; flex:none;
+    text-align:center;
+    padding:8px 0;
+    transform:translateY(16px);
+    transition:transform .95s var(--ease);
+  }
+  .tea.on .tea-inner{transform:none}
+  .tea-title{
+    margin:0;
+    font-family:var(--serif);
+    font-style:italic;
+    font-weight:400;
+    font-size:clamp(44px,8.4vw,84px);
+    line-height:1;
+    letter-spacing:-.03em;
+    color:#fbf2e0;
+    text-wrap:balance;
+  }
+  .tea-sub{
+    margin-top:12px;
+    font-size:15px; font-style:italic;
+    color:#a58f74;
+  }
+  .tea-copy{
+    margin:22px auto 0; max-width:46ch;
+    font-size:clamp(15px,1.6vw,17px);
+    line-height:1.72;
+    color:#c4b29a;
+    text-wrap:pretty;
+  }
+  .tea-copy b{color:#e8cd9f; font-weight:600}
+
+  .mug-wrap{
+    position:relative;
+    width:228px; height:194px;
+    margin:clamp(20px,3vh,32px) auto 2px;
+    display:grid; place-items:center;
+  }
+  .mug-wrap::after{
+    content:""; position:absolute; left:6%; right:6%; bottom:4px; height:26px;
+    border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(255,180,110,.2), transparent 72%);
+    filter:blur(7px);
+  }
+  .saucer{
+    position:absolute; bottom:10px;
+    width:192px; height:28px; border-radius:50%;
+    background:linear-gradient(180deg,#f0e7d4,#c6baa3);
+    box-shadow:0 14px 20px -10px rgba(0,0,0,.85), inset 0 2px 0 rgba(255,255,255,.6);
+  }
+  .mug-handle{
+    position:absolute; z-index:1;
+    right:24px; top:42px;
+    width:52px; height:70px;
+    border:12px solid #f7f0e1; border-left:0;
+    border-radius:0 40px 40px 0;
+    box-shadow:8px 0 14px -10px rgba(0,0,0,.85);
+  }
+  .mug{
+    position:relative; z-index:2;
+    width:148px; height:148px; border-radius:50%;
+    margin-bottom:16px;
+    background:#1d1208;
+    border:11px solid #f7f0e1;
+    box-shadow:
+      0 16px 26px -12px rgba(0,0,0,.9),
+      inset 0 12px 18px rgba(0,0,0,.6),
+      inset 0 0 0 1px rgba(255,255,255,.4);
+  }
+  .tea-liquid{
+    position:absolute; inset:2px; border-radius:50%;
+    background:#8a3a12;
+    transition:background 1s ease;
+    box-shadow:inset 0 0 24px rgba(0,0,0,.5);
+  }
+  .tea-liquid::after{
+    content:""; position:absolute; left:15%; top:13%; width:34%; height:20%;
+    border-radius:50%;
+    background:rgba(255,255,255,.18);
+    filter:blur(4px);
+  }
+  .steam{position:absolute; z-index:3; left:50%; top:2px; width:0; height:0}
+  .steam i{
+    position:absolute; left:0; bottom:0;
+    width:22px; height:30px; border-radius:50%;
+    background:rgba(255,246,232,.34);
+    filter:blur(9px);
+    opacity:0;
+    animation:steamUp 3.6s ease-out infinite;
+  }
+  @keyframes steamUp{
+    0%{opacity:0; transform:translate(0,0) scale(.6)}
+    20%{opacity:.7}
+    100%{opacity:0; transform:translate(var(--dx,8px),-104px) scale(2.3)}
+  }
+  .tea-name{
+    margin:4px 0 20px;
+    font-size:14px; font-style:italic;
+    color:#d9b78a; min-height:1.6em;
+  }
+  .brew-btn{
+    font-family:var(--mono);
+    font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+    color:#540803;
+    padding:0;
+    width:128px; aspect-ratio:1;
+    border:0; border-radius:50%; cursor:pointer;
+    background:radial-gradient(circle at 35% 24%, #ff9d8e 0%, #ff5f4c 12%, #e2311d 36%, #b3140a 72%, #6d0700 100%);
+    box-shadow:
+      inset 0 -8px 12px rgba(0,0,0,.5),
+      inset 0 8px 10px rgba(255,255,255,.3),
+      0 7px 0 -2px #7d0f06,
+      0 14px 22px -12px rgba(0,0,0,.9);
+    transition:transform .1s var(--ease), box-shadow .12s var(--ease), filter .2s ease;
+    touch-action:manipulation;
+  }
+  .brew-btn:hover{filter:brightness(1.06)}
+  .brew-btn:active{
+    transform:translateY(6px);
+    box-shadow:
+      inset 0 -4px 8px rgba(0,0,0,.5),
+      inset 0 5px 8px rgba(255,255,255,.18),
+      0 4px 12px -10px rgba(0,0,0,.9);
+  }
+  .brew-btn:focus-visible{outline:2px solid #ffd9a1; outline-offset:8px}
+  .tea-log{
+    margin:18px auto 0; max-width:44ch;
+    font-size:14px; line-height:1.7;
+    color:#b5a28b;
+    min-height:3.4em;
+  }
+  .biscuit{
+    display:inline-block; margin-top:8px;
+    padding:3px 8px;
+    border:1px solid rgba(230,183,124,.5);
+    font-family:var(--mono);
+    font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--amber);
+    animation:entry .5s var(--ease) both;
+  }
+  .reset{
+    margin-top:18px; display:inline-block;
+    background:none; border:0;
+    padding:4px 1px; cursor:pointer;
+    font-family:var(--serif); font-size:13px;
+    color:#a2917c;
+    border-bottom:1px solid rgba(162,145,124,.5);
+    transition:color .2s ease, border-color .2s ease;
+  }
+  .reset:hover{color:#e6b77c; border-color:#e6b77c}
+
+  body.revealing #world{opacity:0; transform:scale(.97); filter:blur(4px)}
+
+  /* ===================== responsive ===================== */
+  @media (max-width:640px){
+    .masthead{align-items:flex-start; gap:16px}
+    .air{padding-top:4px}
+    .figure{width:min(100%, 44vh)}
+    .stage{padding-top:clamp(12px,3vh,26px)}
+    .log{max-height:min(19vh,124px)}
+    .foot{font-size:12.5px}
+  }
+  @media (max-height:600px){
+    #world{grid-template-rows:auto auto auto}
+    .stage{overflow:visible}
+    .figure{width:min(100%, 40vh)}
+  }
+  @media (max-width:420px){
+    .measure{gap:9px}
+    .ticks i{width:9px}
+    .dome-text{letter-spacing:.16em; text-indent:.16em}
+    .mug-wrap{transform:scale(.94)}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .clone,.steam i{animation:none}
+    body.singularity .ring,body.singularity .assembly,body.skittish .ring{animation:none}
+    #world{transition:opacity .4s ease}
+    body.hit #sweep{animation:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="flash" aria-hidden="true"></div>
+<div id="sweep" aria-hidden="true"></div>
+
+<div id="world">
+  <header class="masthead">
+    <div class="bureau">
+      <h1>Bureau of Last Resorts</h1>
+      <p class="sub">Emergency Measure System, Sublevel 9</p>
+    </div>
+    <div class="air"><i aria-hidden="true"></i><span>On air</span></div>
+  </header>
+
+  <main class="stage" id="console">
+    <div class="figure">
+      <svg class="ring" viewBox="0 0 600 600" aria-hidden="true" focusable="false">
+        <circle cx="300" cy="300" r="296" fill="none" stroke="currentColor" stroke-width="1.4" stroke-opacity=".85"/>
+        <circle cx="300" cy="300" r="286" fill="none" stroke="currentColor" stroke-width="7"
+                pathLength="360" stroke-dasharray=".7 44.3" stroke-opacity="1"/>
+      </svg>
+
+      <div class="assembly" id="assembly">
+        <div class="collar">
+          <button class="dome" id="bigButton" type="button" aria-describedby="instruction">
+            <span class="dome-text">DO NOT PRESS</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <p class="instruction" id="instruction">The Bureau recommends you do not.</p>
+
+    <ol class="log" id="log" aria-live="polite">
+      <li class="boot"><span class="time">00:00</span><span class="line">System booted. One (1) control detected.</span></li>
+      <li class="boot"><span class="time">00:00</span><span class="line">Operator present. Please do not press the button.</span></li>
+    </ol>
+  </main>
+
+  <footer class="foot">
+    <div class="measure">
+      <div class="ticks" id="pips" aria-hidden="true"></div>
+      <span>Measure <b id="pressCount">0</b> of 10</span>
+    </div>
+    <span class="rule" aria-hidden="true"></span>
+    <button class="sound" id="soundBtn" type="button">Sound on</button>
+    <span>0 accidents recorded</span>
+  </footer>
+</div>
+
+<!-- ===================== FORM 27-B ===================== -->
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+    <div class="form-head">
+      <b>Form 27-B</b>
+      <span>Rev. 09, supersedes all</span>
+    </div>
+    <h2 id="formTitle">Request for permission to press the button</h2>
+    <div class="fields">
+      <label>Subject <input type="text" value="The operator" readonly></label>
+      <label>Reason for pressing <input type="text" value="Left blank, as is traditional" readonly></label>
+    </div>
+    <ul>
+      <li>I acknowledge the button has already been pressed <b id="formPresses">0</b> times.</li>
+      <li>I acknowledge that nobody, including this form, knows what the button does.</li>
+      <li>I acknowledge that the above acknowledgements are binding in the sense that they are written down.</li>
+    </ul>
+    <div class="form-actions">
+      <button class="btn" type="button" data-answer="deny">Deny</button>
+      <button class="btn red" type="button" data-answer="approve">Approve</button>
+    </div>
+    <div class="approved-stamp" id="stamp" aria-hidden="true">APPROVED</div>
+  </div>
+</div>
+
+<!-- ===================== TEA ===================== -->
+<section class="tea" id="teaScene" hidden aria-labelledby="teaTitle">
+  <div class="tea-inner">
+    <h2 class="tea-title" id="teaTitle">It was tea.</h2>
+    <p class="tea-sub">The transmission ends.</p>
+    <p class="tea-copy">
+      Nine committees. Twelve years. Four thousand rubber ducks.<br>
+      The Bureau&rsquo;s last resort is <b>a cup of tea</b>, and it has been
+      standing by since 2014, kept at a steady ninety-four degrees.
+    </p>
+
+    <div class="mug-wrap">
+      <div class="saucer" aria-hidden="true"></div>
+      <div class="mug-handle" aria-hidden="true"></div>
+      <div class="mug" aria-hidden="true">
+        <div class="tea-liquid" id="teaLiquid"></div>
+      </div>
+      <div class="steam" id="steam" aria-hidden="true"></div>
+    </div>
+
+    <p class="tea-name" id="teaName">Pouring…</p>
+
+    <button class="brew-btn" id="brewBtn" type="button">Press for tea</button>
+
+    <p class="tea-log" id="teaLog" aria-live="polite">
+      The button has been reassigned. It no longer ends anything.
+    </p>
+
+    <button class="reset" id="resetBtn" type="button">Reopen the Bureau</button>
+  </div>
+</section>
+
+<noscript>
+  <p style="position:fixed;inset:0;display:grid;place-items:center;background:#16266f;color:#f4ecdb;font-family:Georgia,serif;padding:24px;text-align:center;z-index:200">
+    The button requires JavaScript. The Bureau apologises for the inconvenience.
+  </p>
+</noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------------------------------------------------------
+     helpers
+     --------------------------------------------------------- */
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const consoleEl = $('#console');
+  const stageEl = $('.stage');
+  const assembly = $('#assembly');
+  const dome = $('#bigButton');
+  const logEl = $('#log');
+  const pipsEl = $('#pips');
+  const pressCountEl = $('#pressCount');
+  const instructionEl = $('#instruction');
+  const modal = $('#modal');
+  const stampEl = $('#stamp');
+  const flashEl = $('#flash');
+
+  const startedAt = performance.now();
+  let presses = 0;
+  let busy = false;
+  let teaMode = false;
+  let brews = 0;
+
+  /* ---------------------------------------------------------
+     sound — all synthesised, nothing loaded
+     --------------------------------------------------------- */
+  const Sound = {
+    ctx: null,
+    master: null,
+    noiseBuf: null,
+    on: true,
+
+    init() {
+      if (this.ctx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.45;
+      this.master.connect(this.ctx.destination);
+      const len = Math.floor(this.ctx.sampleRate * 1.5);
+      this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const data = this.noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    },
+
+    resume() {
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    },
+
+    shape(gain, t, attack, dur, peak) {
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    },
+
+    tone(freq, dur, type = 'sine', peak = 0.2, slideTo = null, when = 0) {
+      if (!this.ctx || !this.on) return null;
+      const t = this.ctx.currentTime + when;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+      this.shape(gain, t, 0.006, dur, peak);
+      osc.connect(gain).connect(this.master);
+      osc.start(t);
+      osc.stop(t + dur + 0.06);
+      return osc;
+    },
+
+    noise(dur, peak, type = 'lowpass', freq = 900, when = 0, q = 0.9) {
+      if (!this.ctx || !this.noiseBuf || !this.on) return;
+      const t = this.ctx.currentTime + when;
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = type;
+      filter.frequency.value = freq;
+      filter.Q.value = q;
+      const gain = this.ctx.createGain();
+      this.shape(gain, t, 0.004, dur, peak);
+      src.connect(filter).connect(gain).connect(this.master);
+      src.start(t);
+      src.stop(t + dur + 0.06);
+    },
+
+    thunk() {
+      this.init(); this.resume();
+      this.tone(98, 0.44, 'sine', 0.5, 38);
+      this.tone(196, 0.1, 'square', 0.07, 84, 0.004);
+      this.noise(0.22, 0.3, 'lowpass', 620);
+      this.tone(1520, 0.07, 'triangle', 0.045, 880, 0.012);
+    },
+
+    tick() { this.tone(1250, 0.05, 'square', 0.045, 720); },
+
+    quack() {
+      this.init(); this.resume();
+      this.tone(540, 0.1, 'sawtooth', 0.11, 320);
+      this.tone(430, 0.11, 'sawtooth', 0.09, 240, 0.09);
+    },
+
+    chime() {
+      this.init(); this.resume();
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
+        this.tone(f, 2.4, 'sine', 0.085, null, i * 0.1));
+      this.noise(1.4, 0.045, 'bandpass', 2400, 0.2, 1.4);
+    },
+
+    steam() { this.noise(1.8, 0.05, 'highpass', 1700, 0.04); },
+
+    rumble() { this.noise(1.6, 0.16, 'lowpass', 220, 0, 0.7); },
+
+    rise() {
+      this.init(); this.resume();
+      this.tone(150, 3.2, 'sine', 0.16, 1200);
+      this.tone(152, 3.2, 'triangle', 0.05, 1190);
+    }
+  };
+
+  /* ---------------------------------------------------------
+     particles on the overlay canvas
+     --------------------------------------------------------- */
+  const canvas = $('#fx');
+  const ctx = canvas.getContext('2d');
+  let vw = 0, vh = 0, dpr = 1;
+
+  function sizeCanvas() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    vw = window.innerWidth;
+    vh = window.innerHeight;
+    canvas.width = Math.floor(vw * dpr);
+    canvas.height = Math.floor(vh * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  sizeCanvas();
+  window.addEventListener('resize', sizeCanvas);
+
+  const particles = [];
+
+  function addParticle(p) {
+    if (particles.length > 520) particles.shift();
+    particles.push(p);
+  }
+
+  function buttonCenter() {
+    const r = assembly.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+
+  function burst(n, opts) {
+    opts = opts || {};
+    const centre = opts.at || buttonCenter();
+    const colour = opts.colour || [244, 236, 219];
+    for (let i = 0; i < n; i++) {
+      const angle = rnd(0, Math.PI * 2);
+      const speed = rnd(1, 7);
+      addParticle({
+        x: centre.x + rnd(-24, 24),
+        y: centre.y + rnd(-18, 18),
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - rnd(0, 2.4),
+        g: 0.045,
+        drag: 0.985,
+        life: 1,
+        decay: rnd(0.007, 0.019),
+        r: rnd(0.8, 2.6),
+        c: colour
+      });
+    }
+  }
+
+  function sparkles(n) {
+    for (let i = 0; i < n; i++) {
+      addParticle({
+        x: rnd(0, vw),
+        y: rnd(0, vh),
+        vx: rnd(-0.15, 0.15),
+        vy: rnd(-0.35, -0.05),
+        g: -0.002,
+        drag: 0.999,
+        life: 1,
+        decay: rnd(0.002, 0.006),
+        r: rnd(0.7, 2),
+        c: [244, 236, 219]
+      });
+    }
+  }
+
+  function spiral(n) {
+    for (let i = 0; i < n; i++) {
+      addParticle({
+        orbit: true,
+        ang: rnd(0, Math.PI * 2),
+        rad: rnd(100, Math.max(vw, vh) * 0.78),
+        spin: rnd(0.004, 0.017) * (Math.random() < 0.5 ? -1 : 1),
+        pull: rnd(0.991, 0.997),
+        x: 0, y: 0,
+        life: 1,
+        decay: rnd(0.0022, 0.006),
+        r: rnd(0.6, 2.4),
+        c: [255, Math.floor(rnd(80, 170)), Math.floor(rnd(50, 110))]
+      });
+    }
+  }
+
+  function drawParticles() {
+    ctx.clearRect(0, 0, vw, vh);
+    const cx = vw / 2, cy = vh / 2;
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= p.decay;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+
+      if (p.orbit) {
+        p.ang += p.spin;
+        p.rad *= p.pull;
+        p.x = cx + Math.cos(p.ang) * p.rad;
+        p.y = cy + Math.sin(p.ang) * p.rad * 0.72;
+        if (p.rad < 8) p.life -= 0.25;
+      } else {
+        p.vy += p.g;
+        p.vx *= p.drag;
+        p.vy *= p.drag;
+        p.x += p.vx;
+        p.y += p.vy;
+      }
+
+      ctx.globalAlpha = clamp(p.life, 0, 1) * 0.85;
+      ctx.fillStyle = 'rgb(' + p.c[0] + ',' + p.c[1] + ',' + p.c[2] + ')';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * (0.4 + p.life), 0, 6.2832);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(drawParticles);
+  }
+  requestAnimationFrame(drawParticles);
+
+  /* ---------------------------------------------------------
+     screen-level effects
+     --------------------------------------------------------- */
+  function screenFlash(colour, ms) {
+    flashEl.style.transition = 'none';
+    flashEl.style.background = colour;
+    flashEl.style.opacity = '1';
+    requestAnimationFrame(() => {
+      flashEl.style.transition = 'opacity ' + (ms || 320) + 'ms ease-out';
+      flashEl.style.opacity = '0';
+    });
+  }
+
+  function sweep() {
+    document.body.classList.remove('hit');
+    void document.body.offsetWidth;
+    document.body.classList.add('hit');
+    setTimeout(() => document.body.classList.remove('hit'), 720);
+  }
+
+  function shake(el, amp, ms) {
+    if (REDUCED) return;
+    const t0 = performance.now();
+    const step = () => {
+      const p = (performance.now() - t0) / ms;
+      if (p >= 1) { el.style.transform = ''; return; }
+      const k = (1 - p) * (1 - p) * amp;
+      el.style.transform =
+        'translate3d(' + rnd(-k, k).toFixed(1) + 'px,' + rnd(-k, k).toFixed(1) + 'px,0)';
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  /* ---------------------------------------------------------
+     transcript
+     --------------------------------------------------------- */
+  function log(text, tone) {
+    const secs = Math.floor((performance.now() - startedAt) / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+
+    const li = document.createElement('li');
+    li.className = 'latest' + (tone ? ' ' + tone : '');
+
+    const stamp = document.createElement('span');
+    stamp.className = 'time';
+    stamp.textContent = mm + ':' + ss;
+
+    const line = document.createElement('span');
+    line.className = 'line';
+    line.textContent = text;
+
+    li.append(stamp, line);
+
+    [...logEl.children].forEach((el) => el.classList.remove('latest'));
+    logEl.appendChild(li);
+
+    while (logEl.children.length > 16) logEl.removeChild(logEl.firstChild);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  /* ---------------------------------------------------------
+     meter
+     --------------------------------------------------------- */
+  const TOTAL_MEASURES = 10;
+  for (let i = 0; i < TOTAL_MEASURES; i++) pipsEl.appendChild(document.createElement('i'));
+
+  function paintPips() {
+    [...pipsEl.children].forEach((pip, i) => {
+      pip.classList.toggle('on', i < presses);
+    });
+  }
+
+  /* ---------------------------------------------------------
+     level 4 — duplicate buttons
+     --------------------------------------------------------- */
+  const CLONE_SPOTS = [
+    { top: '10%', left: '6%' },
+    { top: '38%', left: '3%' },
+    { top: '68%', left: '8%' },
+    { top: '10%', right: '7%' },
+    { top: '42%', right: '4%' },
+    { top: '70%', right: '9%' },
+    { top: '4%', left: '46%' }
+  ];
+
+  function spawnClones(n) {
+    for (let i = 0; i < n; i++) {
+      const spot = CLONE_SPOTS[i % CLONE_SPOTS.length];
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'clone';
+      el.setAttribute('aria-label', 'Unauthorised duplicate button');
+      el.style.top = spot.top;
+      if (spot.left) el.style.left = spot.left;
+      if (spot.right) el.style.right = spot.right;
+      el.style.animationDelay = (i * 0.16).toFixed(2) + 's';
+
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        Sound.quack();
+        el.classList.add('nope');
+        setTimeout(() => el.classList.remove('nope'), 380);
+        log('An unauthorised button was pressed. The Bureau has declined to notice.');
+      });
+
+      stageEl.appendChild(el);
+    }
+  }
+
+  /* ---------------------------------------------------------
+     level 6 — rubber ducks
+     --------------------------------------------------------- */
+  const DUCK_SVG =
+    '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">' +
+      '<path d="M20 52 L6 44 L14 66 Z" fill="#e7b52f"/>' +
+      '<ellipse cx="45" cy="62" rx="31" ry="22" fill="#f4c63c"/>' +
+      '<circle cx="68" cy="40" r="17" fill="#f8d24a"/>' +
+      '<path d="M82 36 L98 42 L82 47 Z" fill="#e8731c"/>' +
+      '<circle cx="73" cy="36" r="2.4" fill="#2a1c05"/>' +
+    '</svg>';
+
+  function spawnDucks(n) {
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'duck';
+      el.setAttribute('aria-label', 'Rubber duck');
+      el.style.left = rnd(-2, 94) + '%';
+      el.style.setProperty('--dur', rnd(2.6, 5.6).toFixed(2) + 's');
+      el.style.setProperty('--delay', rnd(0, 2.2).toFixed(2) + 's');
+      el.style.setProperty('--spin', Math.floor(rnd(-420, 420)) + 'deg');
+      el.style.fontSize = Math.floor(rnd(22, 56)) + 'px';
+
+      const face = document.createElement('span');
+      face.innerHTML = DUCK_SVG;
+      el.appendChild(face);
+
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        Sound.quack();
+        face.classList.remove('boing');
+        void face.offsetWidth;
+        face.classList.add('boing');
+      });
+
+      stageEl.appendChild(el);
+      setTimeout(() => el.remove(), 9600);
+    }
+  }
+
+  /* ---------------------------------------------------------
+     level 7 — the button runs away
+     --------------------------------------------------------- */
+  let dodgeX = 0, dodgeY = 0, dodging = false;
+
+  function resetDodge() {
+    dodgeX = 0; dodgeY = 0;
+    assembly.style.transform = '';
+  }
+
+  window.addEventListener('pointermove', (ev) => {
+    if (!dodging) return;
+    const host = assembly.parentElement.getBoundingClientRect();
+    const cx = host.left + host.width / 2 + dodgeX;
+    const cy = host.top + host.height / 2 + dodgeY;
+    const dx = cx - ev.clientX;
+    const dy = cy - ev.clientY;
+    const dist = Math.hypot(dx, dy) || 1;
+
+    if (dist < 245) {
+      const push = (245 - dist) / 245;
+      dodgeX = clamp(dodgeX + (dx / dist) * push * 34, -170, 170);
+      dodgeY = clamp(dodgeY + (dy / dist) * push * 26, -130, 130);
+      assembly.style.transform =
+        'translate(' + dodgeX.toFixed(1) + 'px,' + dodgeY.toFixed(1) + 'px) rotate(' +
+        (dx / dist * 1.6).toFixed(2) + 'deg)';
+    }
+  }, { passive: true });
+
+  /* ---------------------------------------------------------
+     level 5 — form 27-B
+     --------------------------------------------------------- */
+  function openForm() {
+    $('#formPresses').textContent = String(presses);
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('on'));
+
+    return new Promise((resolve) => {
+      const buttons = [...modal.querySelectorAll('[data-answer]')];
+      buttons.forEach((b) => { b.disabled = false; });
+
+      let settled = false;
+
+      const onKey = (ev) => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          finish(false);
+          return;
+        }
+        if (ev.key !== 'Tab') return;
+        const list = buttons.filter((b) => !b.disabled);
+        const first = list[0], last = list[list.length - 1];
+        if (ev.shiftKey && document.activeElement === first) {
+          ev.preventDefault(); last.focus();
+        } else if (!ev.shiftKey && document.activeElement === last) {
+          ev.preventDefault(); first.focus();
+        }
+      };
+
+      const finish = (approved) => {
+        if (settled) return;
+        settled = true;
+        document.removeEventListener('keydown', onKey, true);
+        buttons.forEach((b) => { b.disabled = true; });
+        stampEl.classList.add('on');
+        Sound.tone(1400, 0.1, 'square', 0.07);
+        Sound.noise(0.14, 0.12, 'lowpass', 420, 0.02);
+
+        setTimeout(() => {
+          modal.classList.remove('on');
+          setTimeout(() => {
+            modal.hidden = true;
+            stampEl.classList.remove('on');
+            resolve(approved);
+          }, 340);
+        }, 1000);
+      };
+
+      buttons.forEach((b) => {
+        b.onclick = () => finish(b.dataset.answer === 'approve');
+      });
+
+      document.addEventListener('keydown', onKey, true);
+      buttons[0].focus({ preventScroll: true });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     the measures
+     --------------------------------------------------------- */
+  const LEVELS = [
+    {
+      tip: 'There is no undo.',
+      async run() {
+        shake(consoleEl, 13, 500);
+        screenFlash('rgba(226,54,29,.16)', 380);
+        burst(80);
+        Sound.thunk();
+        Sound.tone(64, 0.9, 'sine', 0.16, 42, 0.04);
+        return 'Measure 01 released: one (1) loud noise. Citizens are advised to ignore it, and to continue ignoring it for as long as they can.';
+      }
+    },
+    {
+      tip: 'The lights defer to the button now.',
+      async run() {
+        document.body.classList.add('blackout');
+        sparkles(70);
+        Sound.noise(0.55, 0.1, 'highpass', 1300);
+        Sound.tone(220, 0.5, 'sine', 0.1, 110);
+        return 'Measure 02 released: illumination. All power rerouted to the button. The button is now the sun. Any resemblance to a metaphor is coincidental and has been reviewed.';
+      }
+    },
+    {
+      tip: 'Hold your belongings.',
+      async run() {
+        Sound.rumble();
+        if (!REDUCED) document.body.classList.add('inverted');
+        screenFlash('rgba(244,236,219,.12)', 520);
+        setTimeout(() => document.body.classList.remove('inverted'), 4400);
+        return 'Measure 03 released: gravity. Inversion is temporary. Objects that were “up” will be returned to “up” shortly. Do not attempt to fall upward without supervision.';
+      }
+    },
+    {
+      tip: 'Do not press the other buttons.',
+      async run() {
+        spawnClones(7);
+        Sound.tone(300, 0.4, 'triangle', 0.09, 560);
+        Sound.noise(0.2, 0.1, 'bandpass', 1800, 0.06);
+        burst(40, { colour: [255, 120, 100] });
+        return 'Measure 04 released: replication. Seven (7) additional buttons have been minted. They are unauthorised, untracked, and not your friends.';
+      }
+    },
+    {
+      tip: 'Compliance is optional and also mandatory.',
+      async run() {
+        Sound.tone(880, 0.09, 'square', 0.06);
+        const approved = await openForm();
+        return approved
+          ? 'Measure 05 released: authorisation. Form 27-B was approved retroactively, thirty-one seconds before it existed. The Bureau congratulates you on your foresight.'
+          : 'Measure 05 released: authorisation. Form 27-B was denied. Measure executed regardless. Your dissent has been laminated and filed under “Weather”.';
+      }
+    },
+    {
+      tip: 'Duck.',
+      async run() {
+        spawnDucks(30);
+        Sound.quack();
+        setTimeout(() => Sound.quack(), 300);
+        setTimeout(() => Sound.quack(), 900);
+        return 'Measure 06 released: four thousand (4,000) rubber ducks. Airdrop landed within tolerance. Estimated morale increase: 12%. Estimated clean-up time: permanent.';
+      }
+    },
+    {
+      tip: 'It can see you.',
+      async run() {
+        dodging = true;
+        document.body.classList.add('skittish');
+        Sound.tone(660, 0.14, 'sine', 0.09, 940);
+        await sleep(5600);
+        dodging = false;
+        document.body.classList.remove('skittish');
+        resetDodge();
+        return 'Measure 07 released: self-preservation. The button has grown aware of your approach. It wishes you no harm. It wishes you further away.';
+      }
+    },
+    {
+      tip: 'The serif is not approved.',
+      async run() {
+        document.body.classList.add('font-escape');
+        Sound.tone(210, 0.55, 'triangle', 0.08, 165);
+        return 'Measure 08 released: typography. Containment failed. All documents are now set in a typeface nobody in this building has clearance to name.';
+      }
+    },
+    {
+      tip: 'Stand back.',
+      async run() {
+        document.body.classList.add('singularity');
+        Sound.rise();
+        spiral(800);
+        shake(consoleEl, 8, 2400);
+        let ticks = 0;
+        const iv = setInterval(() => { spiral(36); if (++ticks > 16) clearInterval(iv); }, 210);
+        return 'Measure 09 released: local spacetime. A minor administrative adjustment. Kindly remain seated; the floor is being reconsidered.';
+      }
+    },
+    {
+      tip: '…',
+      async run() {
+        document.body.classList.add('silence');
+        Sound.noise(0.7, 0.05, 'lowpass', 380);
+        await sleep(1600);
+        return 'Measure 10 released: —';
+      }
+    }
+  ];
+
+  /* ---------------------------------------------------------
+     press
+     --------------------------------------------------------- */
+  async function press() {
+    if (busy || teaMode) return;
+    busy = true;
+
+    Sound.init();
+    Sound.resume();
+
+    dome.classList.add('is-down');
+    setTimeout(() => dome.classList.remove('is-down'), 140);
+
+    presses += 1;
+    pressCountEl.textContent = String(presses);
+    paintPips();
+
+    const level = LEVELS[Math.min(presses, LEVELS.length) - 1];
+    instructionEl.textContent = level.tip;
+
+    sweep();
+    shake(consoleEl, 8, 240);
+    burst(14);
+
+    const line = await level.run();
+    log(line, presses === LEVELS.length ? 'final' : '');
+
+    if (presses >= LEVELS.length) {
+      await sleep(1100);
+      revealTea();
+    }
+
+    busy = false;
+  }
+
+  /* ---------------------------------------------------------
+     tea ending
+     --------------------------------------------------------- */
+  const TEAS = [
+    { name: 'Assam, stewed like the plan', colour: '#a4551f' },
+    { name: 'Earl Grey, hot', colour: '#b9762e' },
+    { name: 'Jasmine, two leaves and a bud', colour: '#c9a227' },
+    { name: "Builder's, no questions", colour: '#8a3a12' },
+    { name: 'Genmaicha, lightly toasted', colour: '#8f7a2e' },
+    { name: 'Chamomile, for the nerves you developed', colour: '#d5b04a' },
+    { name: 'Lapsang Souchong, smoky as the ruins', colour: '#6b3a1a' },
+    { name: 'Masala chai, four sugars', colour: '#b0602a' },
+    { name: 'Rooibos, caffeine-free and consequence-free', colour: '#a8412a' },
+    { name: 'A mysterious green, from a drawer', colour: '#7d8f3a' }
+  ];
+
+  const TEA_LINES = [
+    'The kettle was the only machinery the Bureau ever maintained properly.',
+    'Steeping time: four minutes. Consequence time: none.',
+    'A biscuit has been authorised. A second biscuit is under review.',
+    'Nobody has been harmed in the brewing of this measure.',
+    'The ducks have been recalled. They were, on reflection, a mistake.',
+    'Somewhere on Sublevel 9, a committee dissolves itself out of embarrassment.',
+    'This cup has been audited and found to be exactly as good as it tastes.',
+    'Morale: 100%. Clean-up: one mug.',
+    'The button is expected to make a full recovery.',
+    'Filed under: things that were worth pressing for.'
+  ];
+
+  function buildSteam() {
+    const steam = $('#steam');
+    steam.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+      const wisp = document.createElement('i');
+      wisp.style.animationDelay = (i * 0.55).toFixed(2) + 's';
+      wisp.style.animationDuration = rnd(2.9, 4.2).toFixed(2) + 's';
+      wisp.style.setProperty('--dx', Math.floor(rnd(-26, 26)) + 'px');
+      wisp.style.marginLeft = Math.floor(rnd(-16, 16)) + 'px';
+      steam.appendChild(wisp);
+    }
+  }
+
+  function brew(first) {
+    brews += 1;
+    const tea = TEAS[Math.floor(Math.random() * TEAS.length)];
+
+    $('#teaLiquid').style.background = tea.colour;
+    $('#teaName').textContent = tea.name;
+    $('#brewBtn').textContent = 'Pour ' + String(brews + 1).padStart(2, '0');
+
+    buildSteam();
+
+    const logElTea = $('#teaLog');
+    const line = first
+      ? 'First pour. The Bureau notes, with some difficulty, that this is the best thing it has ever produced.'
+      : TEA_LINES[(brews - 1) % TEA_LINES.length];
+
+    logElTea.textContent = line;
+
+    if (brews === 8) {
+      const bic = document.createElement('span');
+      bic.className = 'biscuit';
+      bic.textContent = 'A biscuit has been authorised';
+      logElTea.appendChild(bic);
+    }
+
+    Sound.steam();
+    Sound.tone(660, 0.3, 'sine', 0.06, 880);
+    setTimeout(() => Sound.tone(880, 0.4, 'sine', 0.05, 990), 120);
+  }
+
+  function revealTea() {
+    teaMode = true;
+    document.body.classList.add('revealing');
+    Sound.chime();
+
+    setTimeout(() => {
+      const scene = $('#teaScene');
+      scene.hidden = false;
+      requestAnimationFrame(() => scene.classList.add('on'));
+      brew(true);
+      $('#brewBtn').focus({ preventScroll: true });
+    }, 700);
+
+    setTimeout(() => document.body.classList.remove('revealing'), 1500);
+  }
+
+  /* ---------------------------------------------------------
+     wiring
+     --------------------------------------------------------- */
+  dome.addEventListener('click', () => { press(); });
+
+  $('#brewBtn').addEventListener('click', () => { brew(false); });
+
+  $('#resetBtn').addEventListener('click', () => {
+    Sound.tone(300, 0.2, 'sine', 0.06, 180);
+    setTimeout(() => window.location.reload(), 220);
+  });
+
+  $('#soundBtn').addEventListener('click', (ev) => {
+    Sound.init(); Sound.resume();
+    Sound.on = !Sound.on;
+    ev.currentTarget.textContent = Sound.on ? 'Sound on' : 'Sound off';
+    if (Sound.on) Sound.tick();
+  });
+
+  window.addEventListener('keydown', (ev) => {
+    if (ev.repeat) return;
+    if (ev.code !== 'Space' && ev.code !== 'Enter') return;
+    if (!modal.hidden) return;
+    if (teaMode) return;
+    if (ev.target instanceof HTMLButtonElement) return;
+    ev.preventDefault();
+    press();
+  });
+
+  paintPips();
+  instructionEl.textContent = 'The Bureau recommends you do not.';
+
+  setTimeout(() => {
+    if (!presses) log('Awaiting input. The button is under no obligation to behave.');
+  }, 5200);
+})();
+</script>
+</body>
+</html>
